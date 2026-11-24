@@ -388,6 +388,30 @@ test('sidecar server serves Jev UI, updates settings live, and supports fail-ope
     const failOpenSnap = await failOpenRes.json();
     assert.equal(failOpenSnap.currentTurn.verdict.status, 'timeout');
     assert.equal(failOpenSnap.stats.paused, 0);
+
+    // Save masked API key via POST /api/credentials (never echoes plaintext back)
+    const credRes = await fetch(`${baseUrl}/api/credentials?conversationId=conv-ui`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: 'ts_live_secret_9876' }),
+    });
+    assert.equal(credRes.status, 200);
+    const credBodyText = await credRes.text();
+    assert.equal(credBodyText.includes('ts_live_secret_9876'), false);
+    const credSnap = JSON.parse(credBodyText);
+    assert.equal(credSnap.apiKeyConfigured, true);
+    assert.equal(credSnap.apiKeySource, 'saved');
+    assert.equal(credSnap.apiKeyHint, '••••9876');
+
+    // Clear saved key cleanly
+    const clearRes = await fetch(`${baseUrl}/api/credentials?conversationId=conv-ui`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: '' }),
+    });
+    assert.equal(clearRes.status, 200);
+    const clearedSnap = await clearRes.json();
+    assert.equal(clearedSnap.apiKeySource, 'none');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

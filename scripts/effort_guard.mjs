@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveEffort, evaluatePolicy } from '../lib/effort.mjs';
-import { judgePrompt, resolveJevApiKey } from '../lib/judge.mjs';
-import { getDataDir, loadSettings, recordTurn } from '../lib/store.mjs';
+import { judgePrompt } from '../lib/judge.mjs';
+import { getDataDir, loadSettings, recordTurn, resolveEffectiveApiKey } from '../lib/store.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -134,7 +134,7 @@ export async function handlePreInvocation(payload, deps = {}) {
   }
 
   const apiKey =
-    deps.apiKey !== undefined ? deps.apiKey : resolveJevApiKey().key;
+    deps.apiKey !== undefined ? deps.apiKey : resolveEffectiveApiKey(dataDir).key;
 
   // Missing key: strict fail-open, never block
   if (!apiKey) {
@@ -150,7 +150,8 @@ export async function handlePreInvocation(payload, deps = {}) {
           effectiveLevel: activeEffort || 'medium',
           confidence: 0,
           latencyMs: 0,
-          reason: 'TYPESAFE_API_KEY (or JEV_API_KEY) is not set. Failed open so your turn was never blocked.',
+          reason:
+            'No Jev API key configured. Paste it in Effort Guard → Configure (or export TYPESAFE_API_KEY). Failed open so your turn was never blocked.',
           status: 'no_key',
           costUsd: 0,
         },

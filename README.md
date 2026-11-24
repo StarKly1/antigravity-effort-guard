@@ -18,7 +18,7 @@ A lightweight, zero-dependency Antigravity plugin (Option B — Effort Guard) th
 ## Requirements
 
 - Node.js 18+ (uses built-in `fetch`, `AbortController`, and `node:http`; zero npm dependencies)
-- `TYPESAFE_API_KEY` (or `JEV_API_KEY`) set in your environment — if unset, the plugin fails open safely
+- TypeSafe / Jev API key — paste it directly into **Effort Guard → Configure** (stored locally in `~/.gemini/antigravity/effort-guard/credentials.json` with `0600` permissions) or export `TYPESAFE_API_KEY` / `JEV_API_KEY`
 - Optional: `JEV_API_URL` (or `TYPESAFE_API_URL`) to override `https://api.typesafe.ai/v1/systemone`
 
 ---

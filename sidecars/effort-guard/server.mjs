@@ -8,6 +8,7 @@ import {
   getHudSnapshot,
   loadSettings,
   recordTurn,
+  saveApiKey,
   saveSettings,
 } from '../../lib/store.mjs';
 
@@ -156,6 +157,26 @@ export function createEffortGuardServer(options = {}) {
       try {
         const body = await readJsonBody(req);
         saveSettings(body, dataDir);
+        const snapshot = getHudSnapshot(convId, dataDir);
+        sendJson(res, 200, snapshot);
+      } catch (err) {
+        sendJson(res, 400, { ok: false, error: err.message });
+      }
+      return;
+    }
+
+    if (method === 'POST' && pathname === '/api/credentials') {
+      if (!isAllowedPostOrigin(req.headers.origin)) {
+        sendJson(res, 403, { ok: false, error: 'Forbidden origin' });
+        return;
+      }
+      try {
+        const body = await readJsonBody(req);
+        if (typeof body?.apiKey !== 'string') {
+          sendJson(res, 400, { ok: false, error: 'apiKey must be a string' });
+          return;
+        }
+        saveApiKey(body.apiKey, dataDir);
         const snapshot = getHudSnapshot(convId, dataDir);
         sendJson(res, 200, snapshot);
       } catch (err) {

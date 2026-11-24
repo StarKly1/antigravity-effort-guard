@@ -666,6 +666,83 @@
       background: var(--eg-accent);
     }
 
+    .key-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-input {
+      flex: 1;
+      min-width: 0;
+      background: var(--eg-card);
+      border: 1px solid var(--eg-border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-family: var(--eg-mono);
+      font-size: 12px;
+      line-height: 16px;
+      color: var(--eg-fg);
+    }
+
+    .key-input::placeholder {
+      font-family: var(--eg-font);
+      color: var(--eg-muted);
+    }
+
+    .key-status {
+      font-family: var(--eg-mono);
+      font-size: 11px;
+      line-height: 14px;
+      color: var(--eg-muted);
+    }
+
+    .key-status.is-ok {
+      color: var(--eg-success);
+    }
+
+    .key-status.is-warn {
+      color: var(--eg-warning);
+    }
+
+    .primary-btn {
+      font-family: var(--eg-font);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+      padding: 5px 9px;
+      border-radius: 6px;
+      background: var(--eg-primary);
+      border: 1px solid var(--eg-primary);
+      color: var(--eg-primary-fg);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity 140ms ease;
+    }
+
+    .primary-btn:hover {
+      opacity: 0.9;
+    }
+
+    .footer-key-btn {
+      border: none;
+      background: transparent;
+      padding: 0;
+      font-family: var(--eg-font);
+      font-size: 12px;
+      line-height: 16px;
+      color: var(--eg-muted);
+      cursor: pointer;
+    }
+
+    .footer-key-btn.is-missing {
+      color: var(--eg-warning);
+    }
+
+    .footer-key-btn.is-missing:hover {
+      text-decoration: underline;
+    }
+
     /* GROUP 3: RECENT TURNS */
     .history-meta-right {
       display: inline-flex;
@@ -955,6 +1032,25 @@
           <!-- Expandable Settings Drawer -->
           <div id="judgeDrawer" class="drawer">
             <div class="drawer-field">
+              <div class="slider-head">
+                <label for="apiKeyInput" class="drawer-label">TypeSafe / Jev API Key</label>
+                <span id="apiKeyStatus" class="key-status">Not set</span>
+              </div>
+              <div class="key-row">
+                <input
+                  id="apiKeyInput"
+                  type="password"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Paste API key (stored locally 0600)…"
+                  class="key-input"
+                />
+                <button id="saveKeyBtn" type="button" class="primary-btn">Save</button>
+                <button id="clearKeyBtn" type="button" class="action-btn" hidden>Clear</button>
+              </div>
+            </div>
+
+            <div class="drawer-field">
               <label for="judgeModelSelect" class="drawer-label">Jev System One Model</label>
               <select id="judgeModelSelect" class="select-full">
                 <option value="jev-latest">jev-latest (System One · $0.042/1M in · free out)</option>
@@ -1000,7 +1096,7 @@
       <!-- Quiet Native Footer -->
       <footer class="footer">
         <span class="mono">PreInvocation · Fail-Open</span>
-        <span id="footerApiKey" class="footer-key">TYPESAFE_API_KEY Ready</span>
+        <button id="footerApiKey" type="button" class="footer-key-btn">Jev Key Ready</button>
       </footer>
     </main>
   </div>
@@ -1240,7 +1336,7 @@
           hudConf.textContent = 'no api key';
           hudPill.textContent = 'Fail-Open';
           hudPill.className = 'state-pill tabular is-warn';
-          hudReason.textContent = 'Set TYPESAFE_API_KEY (or JEV_API_KEY) to enable Jev System One judging. Prompts fail open until configured.';
+          hudReason.textContent = 'Paste your Jev API key in Configure (or export TYPESAFE_API_KEY) to enable judging. Prompts fail open until configured.';
         } else {
           hudVerdict.textContent = 'READY';
           hudVerdict.className = 'hero-verdict tabular tone-muted';
@@ -1381,15 +1477,28 @@
       document.getElementById('statSaved').textContent = `~${Number(stats.savedTokensK) || 0}k tok`;
       document.getElementById('statCost').textContent = `$${(Number(stats.judgeSpend) || 0).toFixed(4)}`;
 
-      // Footer API key indicator
+      // Footer & Drawer API key indicator
       const footerKey = document.getElementById('footerApiKey');
-      const keyName = data.apiKeyEnvVar || 'TYPESAFE_API_KEY';
+      const keyStatus = document.getElementById('apiKeyStatus');
+      const clearKeyBtn = document.getElementById('clearKeyBtn');
+      const keyName = data.apiKeyEnvVar || 'Jev Key';
+      const hint = data.apiKeyHint ? ` ${data.apiKeyHint}` : '';
+
       if (data.apiKeyConfigured) {
         footerKey.textContent = `${keyName} Ready`;
-        footerKey.className = 'footer-key';
+        footerKey.className = 'footer-key-btn';
+        keyStatus.textContent =
+          data.apiKeySource === 'env'
+            ? `From ${keyName}${hint}`
+            : `Saved${hint}`;
+        keyStatus.className = 'key-status is-ok';
+        clearKeyBtn.hidden = data.apiKeySource !== 'saved';
       } else {
-        footerKey.textContent = 'TYPESAFE_API_KEY Missing';
-        footerKey.className = 'footer-key is-missing';
+        footerKey.textContent = 'API Key Missing · Configure';
+        footerKey.className = 'footer-key-btn is-missing';
+        keyStatus.textContent = 'Not set';
+        keyStatus.className = 'key-status is-warn';
+        clearKeyBtn.hidden = true;
       }
 
       // Recent Turns list
@@ -1585,6 +1694,59 @@
       previewSelectedIdx = 0;
       previewTimedOut = false;
       renderSnapshot(latestSnapshot);
+    });
+
+    async function saveCredentials(apiKeyValue) {
+      const saveBtn = document.getElementById('saveKeyBtn');
+      const inputEl = document.getElementById('apiKeyInput');
+      try {
+        const res = await fetch(apiUrl('/api/credentials'), {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ apiKey: apiKeyValue }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          inputEl.value = '';
+          renderSnapshot(data);
+          if (apiKeyValue) {
+            saveBtn.textContent = 'Saved ✓';
+            setTimeout(() => {
+              saveBtn.textContent = 'Save';
+            }, 1400);
+          }
+        }
+      } catch {}
+    }
+
+    document.getElementById('saveKeyBtn').addEventListener('click', () => {
+      const val = document.getElementById('apiKeyInput').value.trim();
+      if (!val) return;
+      saveCredentials(val);
+    });
+
+    document.getElementById('apiKeyInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) saveCredentials(val);
+      }
+    });
+
+    document.getElementById('clearKeyBtn').addEventListener('click', () => {
+      saveCredentials('');
+    });
+
+    document.getElementById('footerApiKey').addEventListener('click', () => {
+      const drawer = document.getElementById('judgeDrawer');
+      const chevron = document.getElementById('settingsChevron');
+      const toggleBtn = document.getElementById('settingsToggleBtn');
+      if (!drawer.classList.contains('open')) {
+        drawer.classList.add('open');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+        chevron.classList.add('open');
+      }
+      document.getElementById('apiKeyInput').focus();
     });
 
     // Initial load & live polling
