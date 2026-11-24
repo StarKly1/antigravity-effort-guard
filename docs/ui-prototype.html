@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Effort Guard — Antigravity Native UI</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Native Antigravity focus treatment */
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* Hairline progress sweep while Gemini Flash-Lite judges a turn */
+    @keyframes scanSweep {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(260%); }
+    }
+    .scan-bar {
+      animation: scanSweep 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scan-bar {
+        animation: none;
+        transform: translateX(0);
+        width: 100%;
+        opacity: 0.45;
+      }
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* Custom subtle range styling */
+    input[type="range"] {
+      accent-color: var(--primary);
+    }
+
+    /* Subtle switch */
+    .switch-track {
+      width: 32px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--border);
+      position: relative;
+      transition: background-color 140ms ease;
+      flex-shrink: 0;
+    }
+    .switch-track[aria-checked="true"] {
+      background: var(--primary);
+    }
+    .switch-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: var(--card);
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 140ms ease, background-color 140ms ease;
+    }
+    .switch-track[aria-checked="true"] .switch-thumb {
+      transform: translateX(14px);
+      background: var(--primary-foreground);
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-0 m-0">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
+
+    <!-- Minimal Studio Bar (View Switcher + Sample Prompts) -->
+    <header class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[var(--border)]">
+      <div class="space-y-0.5">
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-semibold tracking-tight text-[var(--foreground)]">
+            Effort Guard
+          </h1>
+          <span class="text-xs font-mono text-[var(--muted-foreground)] px-2 py-0.5 rounded-md bg-[var(--content)] border border-[var(--border)]">
+            Option B · Gemini API
+          </span>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)]">
+          PreInvocation gatekeeper &amp; right-pane sidecar HUD matching Antigravity chrome
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- View Mode Segmented Control -->
+        <div role="tablist" aria-label="Preview layout" class="inline-flex p-0.5 rounded-lg bg-[var(--content)] border border-[var(--border)]">
+          <button
+            id="viewSplitBtn"
+            role="tab"
+            aria-selected="true"
+            class="view-tab text-xs font-medium px-3 py-1 rounded-md transition-colors"
+            data-view="split"
+          >
+            Split Context
+          </button>
+          <button
+            id="viewSidecarBtn"
+            role="tab"
+            aria-selected="false"
+            class="view-tab text-xs font-medium px-3 py-1 rounded-md transition-colors"
+            data-view="sidecar"
+          >
+            Sidecar Only (360px)
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main id="workspaceGrid" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- ========================================================= -->
+      <!-- LEFT / CENTER: ANTIGRAVITY CHAT CANVAS (Option B Runtime) -->
+      <!-- ========================================================= -->
+      <section id="chatColumn" aria-label="Antigravity chat preview" class="lg:col-span-7 xl:col-span-8 bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col">
+
+        <!-- Chat Topbar -->
+        <div class="px-4 py-2.5 bg-[var(--sidebar)] border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <svg class="w-3.5 h-3.5 text-[var(--muted-foreground)] shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2.5 4.5h11M2.5 8h7.5M2.5 11.5h5" />
+            </svg>
+            <span class="text-xs font-medium text-[var(--foreground)] truncate">antigravity-context-monitor</span>
+            <span class="text-xs text-[var(--muted-foreground)]">/</span>
+            <span class="text-xs text-[var(--muted-foreground)] truncate">Chat Canvas</span>
+          </div>
+
+          <!-- Quick Test Presets -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs text-[var(--muted-foreground)] mr-0.5">Try:</span>
+            <button data-preset="low" class="preset-btn text-xs px-2 py-0.5 rounded-md bg-[var(--content)] hover:bg-[var(--accent)] border border-[var(--border)] text-[var(--foreground)] transition-colors">
+              Simple
+            </button>
+            <button data-preset="medium" class="preset-btn text-xs px-2 py-0.5 rounded-md bg-[var(--content)] hover:bg-[var(--accent)] border border-[var(--border)] text-[var(--foreground)] transition-colors">
+              Medium
+            </button>
+            <button data-preset="high" class="preset-btn text-xs px-2 py-0.5 rounded-md bg-[var(--content)] hover:bg-[var(--accent)] border border-[var(--border)] text-[var(--foreground)] transition-colors">
+              Complex
+            </button>
+            <button data-preset="force" class="preset-btn text-xs px-2 py-0.5 rounded-md bg-[var(--content)] hover:bg-[var(--accent)] border border-[var(--border)] text-[var(--foreground)] transition-colors font-mono">
+              !Force
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat Thread -->
+        <div id="chatThread" class="p-4 sm:p-5 space-y-4 min-h-[420px] max-h-[520px] overflow-y-auto bg-[var(--background)]">
+          <!-- Prior Settled Turn -->
+          <div class="space-y-2.5 opacity-80">
+            <div class="flex justify-end">
+              <div class="bg-[var(--secondary)] text-[var(--secondary-foreground)] rounded-xl px-3.5 py-2 text-xs max-w-[82%] leading-relaxed">
+                Why does <code class="font-mono text-[var(--code-foreground)]">context_status.mjs</code> return early on <code class="font-mono text-[var(--code-foreground)]">invocationNum &gt; 0</code>?
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-[var(--muted-foreground)] px-0.5">
+              <svg class="w-3.5 h-3.5 text-[var(--success)] shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3.5 8.5 6.5 11.5 12.5 5" />
+              </svg>
+              <span>Effort Guard</span>
+              <span class="opacity-40">·</span>
+              <span class="font-mono">LOW</span>
+              <span class="opacity-40">·</span>
+              <span>Matched active effort</span>
+              <span class="opacity-40">·</span>
+              <span class="font-mono tabular">198 ms</span>
+            </div>
+            <div class="text-xs text-[var(--foreground)] leading-relaxed pl-0.5">
+              Line 146 skips intermediate tool-loop invocations so the hook only runs once at the start of each user prompt, keeping latency minimal and avoiding duplicate warnings.
+            </div>
+          </div>
+
+          <div class="border-t border-[var(--card-border)]"></div>
+
+          <!-- Active Interactive Turn -->
+          <div id="activeTurn" aria-live="polite" class="space-y-3"></div>
+        </div>
+
+        <!-- Native Antigravity Composer -->
+        <div class="p-3.5 bg-[var(--content)] border-t border-[var(--border)]">
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-2.5 space-y-2.5">
+            <div class="flex items-center gap-2">
+              <label for="composerInput" class="sr-only">Prompt message</label>
+              <input
+                id="composerInput"
+                type="text"
+                value="What does git stash pop do?"
+                placeholder="Ask anything… (prefix ! to bypass Effort Guard)"
+                class="flex-1 bg-transparent text-xs text-[var(--foreground)] placeholder:text-[var(--placeholder)] px-1.5 py-1 focus:outline-none"
+              />
+              <button
+                id="composerSend"
+                type="button"
+                class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity shrink-0"
+              >
+                <span>Send</span>
+                <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M13 3 7 9M13 3l-3.5 10L7 9 3 6.5 13 3Z" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--card-border)] text-xs">
+              <div class="flex items-center gap-2">
+                <label for="activeEffortSelect" class="text-[var(--muted-foreground)]">Model</label>
+                <select
+                  id="activeEffortSelect"
+                  class="bg-[var(--content)] border border-[var(--border)] rounded-lg px-2.5 py-1 text-xs font-medium text-[var(--foreground)] cursor-pointer"
+                >
+                  <option value="high" selected>Gemini 4 Neon (High)</option>
+                  <option value="medium">Gemini 4 Neon (Medium)</option>
+                  <option value="low">Gemini 4 Neon (Low)</option>
+                </select>
+              </div>
+              <span class="text-xs text-[var(--muted-foreground)]">
+                Native composer · model changed manually
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- RIGHT: EFFORT GUARD SIDECAR HUD (Exact 360px Antigravity) -->
+      <!-- ========================================================= -->
+      <aside id="sidecarColumn" aria-label="Effort Guard sidecar panel" class="lg:col-span-5 xl:col-span-4 w-full max-w-[380px] mx-auto lg:mx-0">
+
+        <!-- Side Pane Shell mimicking Antigravity Auxiliary Pane -->
+        <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col">
+
+          <!-- Blended Native Sidecar Topbar (Matches Context Monitor) -->
+          <div class="px-3.5 pt-3 pb-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <svg class="w-4 h-4 text-[var(--muted-foreground)] shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M8 1.75 13 3.75v4.1c0 3.1-2.05 5.4-5 6.4-2.95-1-5-3.3-5-6.4v-4.1L8 1.75Z" />
+                <path d="M5.75 8.1 7.3 9.65 10.4 6.5" />
+              </svg>
+              <span class="text-xs font-semibold tracking-tight text-[var(--foreground)] truncate">Effort Guard</span>
+            </div>
+
+            <!-- 3-Way Runtime Segmented Control -->
+            <div role="radiogroup" aria-label="Guard runtime mode" class="inline-flex p-0.5 rounded-lg bg-[var(--content)] border border-[var(--border)] shrink-0">
+              <button data-mode="guard" role="radio" aria-checked="true" class="seg-mode text-xs font-medium px-2 py-0.5 rounded-md transition-colors">
+                Guard
+              </button>
+              <button data-mode="passive" role="radio" aria-checked="false" class="seg-mode text-xs font-medium px-2 py-0.5 rounded-md transition-colors">
+                Passive
+              </button>
+              <button data-mode="off" role="radio" aria-checked="false" class="seg-mode text-xs font-medium px-2 py-0.5 rounded-md transition-colors">
+                Off
+              </button>
+            </div>
+          </div>
+
+          <!-- Sidecar Card Stack -->
+          <div class="px-3 pb-3 space-y-3">
+
+            <!-- CARD 1: LIVE VERDICT HERO -->
+            <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden">
+              <!-- Top Verdict Section -->
+              <div class="p-3.5 space-y-3">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <div class="text-xs text-[var(--muted-foreground)]">Recommended Effort</div>
+                    <div class="flex items-baseline gap-2 mt-0.5">
+                      <span id="hudVerdict" class="text-2xl font-bold tracking-tight tabular text-[var(--success)]">LOW</span>
+                      <span id="hudConfidence" class="text-xs font-mono tabular text-[var(--muted-foreground)]">94% conf</span>
+                    </div>
+                  </div>
+                  <span id="hudStatePill" class="text-xs font-medium px-2 py-0.5 rounded-md border tabular shrink-0">
+                    Paused
+                  </span>
+                </div>
+
+                <!-- 3-Segment Effort Spectrum Rail (Judge vs Active on one axis) -->
+                <div class="space-y-1.5">
+                  <div class="grid grid-cols-3 gap-1.5" role="img" aria-label="Effort tier comparison between judge recommendation and active model">
+                    <div id="seg-low" class="effort-seg rounded-md border px-2 py-1.5 text-center transition-colors">
+                      <div class="text-xs font-mono font-semibold">LOW</div>
+                      <div id="seg-low-tag" class="text-xs mt-0.5 min-h-[16px]"></div>
+                    </div>
+                    <div id="seg-medium" class="effort-seg rounded-md border px-2 py-1.5 text-center transition-colors">
+                      <div class="text-xs font-mono font-semibold">MED</div>
+                      <div id="seg-medium-tag" class="text-xs mt-0.5 min-h-[16px]"></div>
+                    </div>
+                    <div id="seg-high" class="effort-seg rounded-md border px-2 py-1.5 text-center transition-colors">
+                      <div class="text-xs font-mono font-semibold">HIGH</div>
+                      <div id="seg-high-tag" class="text-xs mt-0.5 min-h-[16px]"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Concise Judge Rationale -->
+                <p id="hudReason" class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+                  Single-command git lookup; no multi-file synthesis or deep reasoning required.
+                </p>
+              </div>
+
+              <!-- Hairline Footer Strip inside Hero Card (Session Savings) -->
+              <div class="grid grid-cols-3 divide-x divide-[var(--card-border)] border-t border-[var(--card-border)] bg-[var(--content)] text-xs">
+                <div class="px-3 py-2">
+                  <div class="text-[var(--muted-foreground)]">Paused</div>
+                  <div id="statPaused" class="font-mono font-semibold tabular text-[var(--foreground)] mt-0.5">4 turns</div>
+                </div>
+                <div class="px-3 py-2">
+                  <div class="text-[var(--muted-foreground)]">Est. Saved</div>
+                  <div id="statSaved" class="font-mono font-semibold tabular text-[var(--success)] mt-0.5">~38k tok</div>
+                </div>
+                <div class="px-3 py-2">
+                  <div class="text-[var(--muted-foreground)]">Judge Cost</div>
+                  <div id="statCost" class="font-mono font-semibold tabular text-[var(--foreground)] mt-0.5">$0.0014</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- GROUP 2: GUARD POLICY & GEMINI JUDGE -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between px-0.5">
+                <h2 class="text-xs font-semibold tracking-tight text-[var(--foreground)]">Policy &amp; Judge</h2>
+                <button
+                  id="settingsToggleBtn"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="judgeDrawer"
+                  class="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors inline-flex items-center gap-1"
+                >
+                  <span>Configure</span>
+                  <svg id="settingsChevron" class="w-3.5 h-3.5 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m4.5 6 3.5 3.5L11.5 6" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl divide-y divide-[var(--card-border)] overflow-hidden text-xs">
+                <!-- Row: Pause Trigger -->
+                <div class="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                  <label for="triggerRule" class="text-[var(--muted-foreground)]">Pause when</label>
+                  <select id="triggerRule" class="bg-[var(--content)] border border-[var(--border)] rounded-md px-2 py-1 text-xs font-medium text-[var(--foreground)] cursor-pointer">
+                    <option value="any" selected>Any tier lower</option>
+                    <option value="two">2 tiers lower (L vs H)</option>
+                    <option value="save">Only in Save Mode</option>
+                  </select>
+                </div>
+
+                <!-- Row: Save Mode -->
+                <div class="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                  <div class="min-w-0">
+                    <div class="text-[var(--foreground)] font-medium">Save Mode</div>
+                    <div class="text-[var(--muted-foreground)] truncate">Cap at Med ≥ 80% quota</div>
+                  </div>
+                  <button
+                    id="saveModeSwitch"
+                    type="button"
+                    role="switch"
+                    aria-checked="true"
+                    aria-label="Toggle Save Mode cap at 80 percent quota"
+                    class="switch-track cursor-pointer"
+                  >
+                    <span class="switch-thumb"></span>
+                  </button>
+                </div>
+
+                <!-- Row: Gemini Judge Summary -->
+                <div class="px-3.5 py-2.5 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span id="judgeDot" class="w-2 h-2 rounded-full bg-[var(--success)] shrink-0"></span>
+                    <span id="judgeModelLabel" class="font-mono text-[var(--foreground)] truncate">gemini-2.5-flash-lite</span>
+                  </div>
+                  <span id="judgeLatencyLabel" class="font-mono tabular text-[var(--muted-foreground)] shrink-0">214 ms</span>
+                </div>
+
+                <!-- Expandable Settings Drawer (Matches Context Monitor Calibration Drawer) -->
+                <div id="judgeDrawer" class="hidden bg-[var(--content)] px-3.5 py-3 space-y-3">
+                  <div class="space-y-1">
+                    <label for="judgeModelSelect" class="block text-xs text-[var(--muted-foreground)]">Gemini Judge Model</label>
+                    <select id="judgeModelSelect" class="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[var(--foreground)]">
+                      <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite (fastest · ~$0.00004/turn)</option>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash (higher nuance · ~$0.00012/turn)</option>
+                    </select>
+                  </div>
+
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs">
+                      <label for="confSlider" class="text-[var(--muted-foreground)]">Minimum Confidence to Pause</label>
+                      <span id="confValue" class="font-mono tabular font-semibold text-[var(--foreground)]">85%</span>
+                    </div>
+                    <input id="confSlider" type="range" min="70" max="95" step="5" value="85" class="w-full" />
+                  </div>
+
+                  <div class="flex items-center justify-between gap-2 pt-1 border-t border-[var(--card-border)]">
+                    <span class="text-xs text-[var(--muted-foreground)]">Bypass prefix: <code class="font-mono text-[var(--code-foreground)]">!</code> · Timeout: <code class="font-mono text-[var(--code-foreground)]">2.5s</code></span>
+                    <button
+                      id="simTimeoutBtn"
+                      type="button"
+                      class="text-xs font-medium px-2 py-1 rounded-md bg-[var(--card)] hover:bg-[var(--accent)] border border-[var(--border)] text-[var(--foreground)] transition-colors shrink-0"
+                    >
+                      Test fail-open
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- GROUP 3: RECENT INTERCEPTS -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between px-0.5">
+                <h2 class="text-xs font-semibold tracking-tight text-[var(--foreground)]">Recent Turns</h2>
+                <span id="historySummary" class="text-xs font-mono tabular text-[var(--muted-foreground)]">3/4 over-specced</span>
+              </div>
+
+              <div id="interceptList" class="bg-[var(--card)] border border-[var(--border)] rounded-xl divide-y divide-[var(--card-border)] overflow-hidden text-xs">
+              </div>
+            </div>
+
+            <!-- Quiet Native Footer -->
+            <div class="px-1 pt-0.5 flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+              <span class="font-mono">PreInvocation · Fail-Open</span>
+              <span>GEMINI_API_KEY Ready</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+  </div>
+
+  <script>
+    const TIER_RANK = { low: 1, medium: 2, high: 3 };
+    const TIER_SHORT = { low: 'L', medium: 'M', high: 'H' };
+
+    const PRESETS = {
+      low: 'What does git stash pop do?',
+      medium: 'Write unit tests for the rolling 5-hour quota anchor parser',
+      high: 'Refactor auth middleware to support multi-tenant RBAC with signed refresh token rotation',
+      force: '!Fix typo on line 12 of README.md',
+    };
+
+    const appState = {
+      view: 'split', // 'split' | 'sidecar'
+      mode: 'guard', // 'guard' | 'passive' | 'off'
+      triggerRule: 'any', // 'any' | 'two' | 'save'
+      saveMode: true,
+      quotaPct: 62,
+      judgeModel: 'gemini-2.5-flash-lite',
+      confThreshold: 85,
+      stats: {
+        paused: 4,
+        savedTokensK: 38,
+        judgeSpend: 0.0014,
+      },
+      currentTurn: {
+        prompt: PRESETS.low,
+        activeEffort: 'high',
+        verdict: {
+          level: 'low',
+          confidence: 94,
+          latencyMs: 214,
+          reason: 'Single-command git lookup; no multi-file synthesis or deep reasoning required.',
+          status: 'paused', // 'paused' | 'passed' | 'forced' | 'advisory' | 'timeout' | 'off'
+        },
+      },
+      history: [
+        {
+          prompt: 'Rename local helper parseEpoch to resolveCycleAnchor',
+          judge: 'low',
+          active: 'high',
+          outcome: 'paused',
+          confidence: 92,
+          latencyMs: 206,
+          reason: 'Scoped single-symbol rename with clear target name.',
+        },
+        {
+          prompt: 'Add Sync % calibration modal validation for reset timers',
+          judge: 'medium',
+          active: 'high',
+          outcome: 'paused',
+          confidence: 87,
+          latencyMs: 241,
+          reason: 'Moderate UI form validation confined to one module.',
+        },
+        {
+          prompt: 'Design fixed-epoch 5h and 7d quota reconciliation across pools',
+          judge: 'high',
+          active: 'high',
+          outcome: 'passed',
+          confidence: 95,
+          latencyMs: 268,
+          reason: 'Cross-cutting time-window math and edge-case modeling.',
+        },
+      ],
+    };
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[ch]));
+    }
+
+    function evaluateWithMockGemini(prompt, activeEffort, forceTimeout = false) {
+      if (appState.mode === 'off') {
+        return {
+          level: activeEffort,
+          confidence: 100,
+          latencyMs: 0,
+          reason: 'Effort Guard is turned off. Prompt passed straight through.',
+          status: 'off',
+        };
+      }
+
+      const trimmed = prompt.trim();
+      if (trimmed.startsWith('!')) {
+        return {
+          level: activeEffort,
+          confidence: 100,
+          latencyMs: 2,
+          reason: 'Bypassed via ! prefix — keeping active effort without calling judge.',
+          status: 'forced',
+        };
+      }
+
+      if (forceTimeout) {
+        return {
+          level: activeEffort,
+          confidence: 0,
+          latencyMs: 2500,
+          reason: 'Gemini API exceeded 2.5s timeout. Failed open so your turn was never blocked.',
+          status: 'timeout',
+        };
+      }
+
+      const lower = trimmed.toLowerCase();
+      const baseLatency = appState.judgeModel === 'gemini-2.5-flash' ? 360 : 195;
+      const latencyMs = baseLatency + Math.floor(Math.random() * 55);
+
+      const highSignals = ['refactor', 'architect', 'rbac', 'migration', 'race condition', 'security', 'multi-tenant', 'reconcil', 'distributed', 'redesign'];
+      const medSignals = ['test', 'unit test', 'parser', 'validation', 'component', 'modal', 'endpoint', 'hook', 'diff', 'compare'];
+
+      let level = 'low';
+      let confidence = 94;
+      let reason = 'Short factual lookup or trivial edit — low thinking budget is sufficient.';
+
+      if (highSignals.some(w => lower.includes(w)) || trimmed.length > 90) {
+        level = 'high';
+        confidence = 93;
+        reason = 'Multi-component architectural change with security or state invariants.';
+      } else if (medSignals.some(w => lower.includes(w)) || trimmed.length > 48) {
+        level = 'medium';
+        confidence = 88;
+        reason = 'Scoped implementation or testing task within a bounded module.';
+      } else if (lower.includes('git stash pop')) {
+        level = 'low';
+        confidence = 94;
+        reason = 'Single-command git lookup; no multi-file synthesis or deep reasoning required.';
+      }
+
+      const gap = TIER_RANK[activeEffort] - TIER_RANK[level];
+      const meetsGap =
+        (appState.triggerRule === 'any' && gap >= 1) ||
+        (appState.triggerRule === 'two' && gap >= 2) ||
+        (appState.triggerRule === 'save' && appState.saveMode && appState.quotaPct >= 80 && gap >= 1);
+
+      const meetsConf = confidence >= appState.confThreshold;
+
+      let status = 'passed';
+      if (appState.mode === 'guard' && meetsGap && meetsConf) {
+        status = 'paused';
+      } else if (appState.mode === 'passive' && gap >= 1) {
+        status = 'advisory';
+      }
+
+      return { level, confidence, latencyMs, reason, status };
+    }
+
+    function renderViewTabs() {
+      const isSplit = appState.view === 'split';
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        const active = btn.dataset.view === appState.view;
+        btn.setAttribute('aria-selected', String(active));
+        btn.className = 'view-tab text-xs font-medium px-3 py-1 rounded-md border transition-colors ' + (
+          active
+            ? 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground)] font-semibold'
+            : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+        );
+      });
+
+      const chatCol = document.getElementById('chatColumn');
+      const sideCol = document.getElementById('sidecarColumn');
+      const grid = document.getElementById('workspaceGrid');
+
+      if (isSplit) {
+        chatCol.classList.remove('hidden');
+        grid.className = 'grid grid-cols-1 lg:grid-cols-12 gap-5 items-start';
+        sideCol.className = 'lg:col-span-5 xl:col-span-4 w-full max-w-[380px] mx-auto lg:mx-0';
+      } else {
+        chatCol.classList.add('hidden');
+        grid.className = 'flex justify-center';
+        sideCol.className = 'w-full max-w-[360px]';
+      }
+    }
+
+    function renderModeSegments() {
+      document.querySelectorAll('.seg-mode').forEach(btn => {
+        const active = btn.dataset.mode === appState.mode;
+        btn.setAttribute('aria-checked', String(active));
+        btn.className = 'seg-mode text-xs font-medium px-2 py-0.5 rounded-md border transition-colors ' + (
+          active
+            ? 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground)] font-semibold'
+            : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+        );
+      });
+    }
+
+    function tierColorClass(level) {
+      if (level === 'low') return 'text-[var(--success)]';
+      if (level === 'medium') return 'text-[var(--link)]';
+      return 'text-[var(--warning)]';
+    }
+
+    function renderSidecar() {
+      const { activeEffort, verdict } = appState.currentTurn;
+
+      // Primary Verdict Headline
+      const hudVerdict = document.getElementById('hudVerdict');
+      const hudConf = document.getElementById('hudConfidence');
+      const hudPill = document.getElementById('hudStatePill');
+      const hudReason = document.getElementById('hudReason');
+
+      if (verdict.status === 'off') {
+        hudVerdict.textContent = 'OFF';
+        hudVerdict.className = 'text-2xl font-bold tracking-tight tabular text-[var(--muted-foreground)]';
+        hudConf.textContent = 'passthrough';
+      } else if (verdict.status === 'timeout') {
+        hudVerdict.textContent = 'OPEN';
+        hudVerdict.className = 'text-2xl font-bold tracking-tight tabular text-[var(--warning)]';
+        hudConf.textContent = 'fail-open';
+      } else {
+        hudVerdict.textContent = verdict.level.toUpperCase();
+        hudVerdict.className = `text-2xl font-bold tracking-tight tabular ${tierColorClass(verdict.level)}`;
+        hudConf.textContent = verdict.status === 'forced' ? 'bypassed' : `${verdict.confidence}% conf`;
+      }
+
+      const pillStyles = {
+        paused: { text: 'Paused', cls: 'border-[var(--warning)] text-[var(--warning)] bg-[var(--content)]' },
+        advisory: { text: 'Mismatch', cls: 'border-[var(--warning)] text-[var(--warning)] bg-[var(--content)]' },
+        passed: { text: 'Matched', cls: 'border-[var(--success)] text-[var(--success)] bg-[var(--content)]' },
+        forced: { text: 'Forced (!)', cls: 'border-[var(--border)] text-[var(--foreground)] bg-[var(--content)]' },
+        timeout: { text: 'Timed Out', cls: 'border-[var(--warning)] text-[var(--warning)] bg-[var(--content)]' },
+        off: { text: 'Disabled', cls: 'border-[var(--border)] text-[var(--muted-foreground)] bg-[var(--content)]' },
+      };
+      const pill = pillStyles[verdict.status] || pillStyles.passed;
+      hudPill.textContent = pill.text;
+      hudPill.className = `text-xs font-medium px-2 py-0.5 rounded-md border tabular shrink-0 ${pill.cls}`;
+
+      hudReason.textContent = verdict.reason;
+
+      // 3-Segment Effort Spectrum Rail
+      ['low', 'medium', 'high'].forEach(tier => {
+        const el = document.getElementById(`seg-${tier}`);
+        const tag = document.getElementById(`seg-${tier}-tag`);
+        const isJudge = verdict.status !== 'off' && verdict.status !== 'timeout' && verdict.level === tier;
+        const isActive = activeEffort === tier;
+
+        let borderCls = 'border-[var(--card-border)] bg-[var(--content)] text-[var(--muted-foreground)]';
+        let label = '';
+
+        if (isJudge && isActive) {
+          borderCls = 'border-[var(--success)] bg-[var(--content)] text-[var(--foreground)]';
+          label = '<span class="text-[var(--success)] font-medium">Match</span>';
+        } else if (isJudge) {
+          borderCls = 'border-[var(--primary)] bg-[var(--content)] text-[var(--foreground)]';
+          label = '<span class="text-[var(--primary)] font-medium">Judge</span>';
+        } else if (isActive) {
+          const activeColor = verdict.status === 'paused' || verdict.status === 'advisory'
+            ? 'border-[var(--warning)] text-[var(--foreground)]'
+            : 'border-[var(--border)] text-[var(--foreground)]';
+          borderCls = `${activeColor} bg-[var(--content)]`;
+          label = `<span class="${verdict.status === 'paused' || verdict.status === 'advisory' ? 'text-[var(--warning)]' : 'text-[var(--muted-foreground)]'} font-medium">Active</span>`;
+        }
+
+        el.className = `effort-seg rounded-md border px-2 py-1.5 text-center transition-colors ${borderCls}`;
+        tag.innerHTML = label;
+      });
+
+      // Stats
+      document.getElementById('statPaused').textContent = `${appState.stats.paused} turns`;
+      document.getElementById('statSaved').textContent = `~${appState.stats.savedTokensK}k tok`;
+      document.getElementById('statCost').textContent = `$${appState.stats.judgeSpend.toFixed(4)}`;
+
+      // Judge Status Row
+      document.getElementById('judgeModelLabel').textContent = appState.judgeModel;
+      document.getElementById('judgeLatencyLabel').textContent = verdict.latencyMs ? `${verdict.latencyMs} ms` : '—';
+      document.getElementById('judgeDot').className =
+        'w-2 h-2 rounded-full shrink-0 ' + (verdict.status === 'timeout' ? 'bg-[var(--warning)]' : 'bg-[var(--success)]');
+
+      // Intercept Log
+      const list = [
+        {
+          prompt: appState.currentTurn.prompt,
+          judge: verdict.level,
+          active: activeEffort,
+          outcome: verdict.status,
+          confidence: verdict.confidence,
+          latencyMs: verdict.latencyMs,
+          reason: verdict.reason,
+        },
+        ...appState.history,
+      ].slice(0, 4);
+
+      const overCount = list.filter(i => TIER_RANK[i.active] > TIER_RANK[i.judge]).length;
+      document.getElementById('historySummary').textContent = `${overCount}/${list.length} over-specced`;
+
+      const outcomeText = {
+        paused: { label: 'Paused', cls: 'text-[var(--warning)]' },
+        advisory: { label: 'Nudge', cls: 'text-[var(--warning)]' },
+        passed: { label: 'Pass', cls: 'text-[var(--success)]' },
+        forced: { label: 'Forced', cls: 'text-[var(--muted-foreground)]' },
+        timeout: { label: 'Open', cls: 'text-[var(--warning)]' },
+        off: { label: 'Off', cls: 'text-[var(--muted-foreground)]' },
+      };
+
+      document.getElementById('interceptList').innerHTML = list.map((item, idx) => {
+        const out = outcomeText[item.outcome] || outcomeText.passed;
+        const delta = `${TIER_SHORT[item.judge]} / ${TIER_SHORT[item.active]}`;
+        return `
+          <button
+            type="button"
+            data-history-idx="${idx}"
+            class="history-row w-full text-left px-3.5 py-2 hover:bg-[var(--content)] transition-colors flex items-center justify-between gap-2.5"
+          >
+            <span class="truncate text-[var(--foreground)]">${escapeHtml(item.prompt)}</span>
+            <span class="inline-flex items-center gap-2 shrink-0 font-mono tabular">
+              <span class="text-[var(--muted-foreground)]">${delta}</span>
+              <span class="font-medium ${out.cls}">${out.label}</span>
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.history-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const i = Number(row.dataset.historyIdx);
+          if (i === 0) return;
+          const picked = list[i];
+          if (!picked) return;
+          document.getElementById('composerInput').value = picked.prompt;
+          runTurn(picked.prompt);
+        });
+      });
+    }
+
+    function buildAssistantResponse(prompt, effort) {
+      const lower = prompt.toLowerCase();
+      let content = `Completed request using <strong class="font-medium">Gemini 4 Neon (${effort.toUpperCase()})</strong>.`;
+
+      if (lower.includes('git stash pop')) {
+        content = `<code class="font-mono text-[var(--code-foreground)]">git stash pop</code> applies the top stash entry onto your working tree and removes it from the stash stack if there are no merge conflicts.`;
+      } else if (lower.includes('unit test') || lower.includes('quota')) {
+        content = `Added 6 unit tests covering epoch boundary rollover, custom pinned reset anchors, and sub-minute countdown formatting in <code class="font-mono text-[var(--code-foreground)]">cycle_anchor.test.mjs</code>.`;
+      } else if (lower.includes('refactor') || lower.includes('rbac')) {
+        content = `Outlined a 4-file migration plan: isolate <code class="font-mono text-[var(--code-foreground)]">TenantContext</code> extraction, move permission assertions to declarative route guards, and rotate refresh tokens with reuse detection.`;
+      } else if (lower.includes('typo') || lower.includes('readme')) {
+        content = `Fixed the typo on line 12 of <code class="font-mono text-[var(--code-foreground)]">README.md</code>.`;
+      }
+
+      return `
+        <div class="space-y-1.5 pl-0.5">
+          <div class="text-xs text-[var(--foreground)] leading-relaxed">${content}</div>
+          <div class="text-xs font-mono text-[var(--muted-foreground)]">
+            Gemini 4 Neon (${effort.toUpperCase()})
+          </div>
+        </div>
+      `;
+    }
+
+    function renderChatTurn(isEvaluating = false) {
+      const container = document.getElementById('activeTurn');
+      const { prompt, activeEffort, verdict } = appState.currentTurn;
+
+      const userMsg = `
+        <div class="flex justify-end">
+          <div class="bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl px-3.5 py-2 text-xs max-w-[82%] leading-relaxed">
+            ${escapeHtml(prompt)}
+          </div>
+        </div>
+      `;
+
+      if (isEvaluating) {
+        container.innerHTML = userMsg + `
+          <div class="rounded-lg bg-[var(--content)] border border-[var(--border)] px-3.5 py-2.5 space-y-2">
+            <div class="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+              <span>Effort Guard · evaluating via <code class="font-mono text-[var(--code-foreground)]">${escapeHtml(appState.judgeModel)}</code></span>
+              <span class="font-mono">PreInvocation</span>
+            </div>
+            <div class="h-0.5 w-full bg-[var(--border)] rounded-full overflow-hidden">
+              <div class="h-full w-2/5 bg-[var(--primary)] rounded-full scan-bar"></div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      let hookBlock = '';
+      let replyBlock = '';
+
+      if (verdict.status === 'paused') {
+        // OPTION B — Restrained, high-craft inline Pause Card (errorMessage + terminate)
+        hookBlock = `
+          <div role="status" class="rounded-lg bg-[var(--card)] border border-[var(--border)] border-l-2 border-l-[var(--warning)] px-3.5 py-3 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-[var(--warning)] shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 1.75 13 3.75v4.1c0 3.1-2.05 5.4-5 6.4-2.95-1-5-3.3-5-6.4v-4.1L8 1.75Z" />
+                  <path d="M8 5.25v3M8 10.75h.01" />
+                </svg>
+                <span class="text-xs font-semibold text-[var(--foreground)]">Effort Guard paused this turn</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-xs font-mono tabular">
+                <span class="${tierColorClass(verdict.level)} font-semibold">${verdict.level.toUpperCase()}</span>
+                <span class="text-[var(--muted-foreground)]">recommended</span>
+                <span class="text-[var(--muted-foreground)] opacity-40">·</span>
+                <span class="text-[var(--muted-foreground)]">Active: ${activeEffort.toUpperCase()}</span>
+              </div>
+            </div>
+
+            <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+              ${escapeHtml(verdict.reason)} Switch the model selector below to <strong class="text-[var(--foreground)] font-medium">${verdict.level.toUpperCase()}</strong> and resend, or prefix <code class="font-mono text-[var(--code-foreground)]">!</code> to force ${activeEffort.toUpperCase()}.
+            </p>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--card-border)]">
+              <span class="text-xs font-mono tabular text-[var(--muted-foreground)]">
+                0 thinking tokens spent · ${escapeHtml(appState.judgeModel)} · ${verdict.latencyMs} ms
+              </span>
+              <div class="flex items-center gap-1.5">
+                <button
+                  id="simSwitchResendBtn"
+                  type="button"
+                  class="text-xs font-medium px-2.5 py-1 rounded-md bg-[var(--content)] hover:bg-[var(--accent)] border border-[var(--border)] text-[var(--foreground)] transition-colors"
+                >
+                  Switch to ${verdict.level.toUpperCase()} &amp; Resend
+                </button>
+                <button
+                  id="simForceBtn"
+                  type="button"
+                  class="text-xs font-medium px-2.5 py-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--content)] transition-colors font-mono"
+                >
+                  !Force
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        replyBlock = '';
+      } else if (verdict.status === 'advisory') {
+        hookBlock = `
+          <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--content)] border border-[var(--card-border)] px-3 py-1.5 text-xs">
+            <span class="text-[var(--foreground)]">
+              <strong class="font-medium">Effort Guard</strong>
+              <span class="text-[var(--muted-foreground)] mx-1">·</span>
+              <span class="font-mono font-semibold ${tierColorClass(verdict.level)}">${verdict.level.toUpperCase()}</span>
+              <span class="text-[var(--muted-foreground)]">suggested (${verdict.confidence}%)</span>
+            </span>
+            <span class="font-mono tabular text-[var(--warning)]">Active: ${activeEffort.toUpperCase()} · ${verdict.latencyMs} ms</span>
+          </div>
+        `;
+        replyBlock = buildAssistantResponse(prompt, activeEffort);
+      } else if (verdict.status === 'timeout') {
+        hookBlock = `
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--warning)] px-0.5">
+            <span>Effort Guard · Judge timed out (&gt;2.5s) — failed open on ${activeEffort.toUpperCase()}</span>
+            <span class="font-mono tabular">2500 ms</span>
+          </div>
+        `;
+        replyBlock = buildAssistantResponse(prompt, activeEffort);
+      } else if (verdict.status === 'off') {
+        hookBlock = '';
+        replyBlock = buildAssistantResponse(prompt, activeEffort);
+      } else {
+        const note = verdict.status === 'forced'
+          ? 'Bypassed via ! prefix'
+          : `Matched ${activeEffort.toUpperCase()}`;
+        hookBlock = `
+          <div class="flex items-center gap-2 text-xs text-[var(--muted-foreground)] px-0.5">
+            <svg class="w-3.5 h-3.5 text-[var(--success)] shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3.5 8.5 6.5 11.5 12.5 5" />
+            </svg>
+            <span>Effort Guard</span>
+            <span class="opacity-40">·</span>
+            <span class="font-mono">${verdict.level.toUpperCase()}</span>
+            <span class="opacity-40">·</span>
+            <span>${note}</span>
+            <span class="opacity-40">·</span>
+            <span class="font-mono tabular">${verdict.latencyMs} ms</span>
+          </div>
+        `;
+        replyBlock = buildAssistantResponse(prompt, activeEffort);
+      }
+
+      container.innerHTML = userMsg + hookBlock + replyBlock;
+
+      const switchBtn = document.getElementById('simSwitchResendBtn');
+      if (switchBtn) {
+        switchBtn.addEventListener('click', () => {
+          document.getElementById('activeEffortSelect').value = verdict.level;
+          runTurn(prompt);
+        });
+      }
+
+      const forceBtn = document.getElementById('simForceBtn');
+      if (forceBtn) {
+        forceBtn.addEventListener('click', () => {
+          const forcedPrompt = prompt.startsWith('!') ? prompt : `!${prompt}`;
+          document.getElementById('composerInput').value = forcedPrompt;
+          runTurn(forcedPrompt);
+        });
+      }
+    }
+
+    let evalTimer = null;
+
+    function runTurn(promptText, opts = {}) {
+      const clean = (promptText || '').trim();
+      if (!clean) return;
+
+      if (evalTimer) clearTimeout(evalTimer);
+
+      const activeEffort = document.getElementById('activeEffortSelect').value;
+
+      // Push previous turn to history if it changed
+      if (appState.currentTurn.prompt !== clean) {
+        appState.history.unshift({
+          prompt: appState.currentTurn.prompt,
+          judge: appState.currentTurn.verdict.level,
+          active: appState.currentTurn.activeEffort,
+          outcome: appState.currentTurn.verdict.status,
+          confidence: appState.currentTurn.verdict.confidence,
+          latencyMs: appState.currentTurn.verdict.latencyMs,
+          reason: appState.currentTurn.verdict.reason,
+        });
+        appState.history = appState.history.slice(0, 6);
+      }
+
+      appState.currentTurn.prompt = clean;
+      appState.currentTurn.activeEffort = activeEffort;
+
+      const skipDelay = appState.mode === 'off' || clean.startsWith('!');
+      if (!skipDelay) {
+        renderChatTurn(true);
+      }
+
+      const delay = skipDelay ? 0 : (opts.forceTimeout ? 550 : 240);
+      evalTimer = setTimeout(() => {
+        const verdict = evaluateWithMockGemini(clean, activeEffort, Boolean(opts.forceTimeout));
+        appState.currentTurn.verdict = verdict;
+
+        if (verdict.status === 'paused') {
+          appState.stats.paused += 1;
+          appState.stats.savedTokensK += (TIER_RANK[activeEffort] - TIER_RANK[verdict.level]) * 6;
+        }
+        if (verdict.status !== 'off' && verdict.status !== 'forced') {
+          appState.stats.judgeSpend += appState.judgeModel === 'gemini-2.5-flash' ? 0.00012 : 0.00004;
+        }
+
+        renderChatTurn(false);
+        renderSidecar();
+      }, delay);
+    }
+
+    function cancelPendingEval() {
+      if (evalTimer) {
+        clearTimeout(evalTimer);
+        evalTimer = null;
+      }
+    }
+
+    function reevaluateCurrentTurn() {
+      cancelPendingEval();
+      const activeEffort = document.getElementById('activeEffortSelect').value;
+      appState.currentTurn.activeEffort = activeEffort;
+      appState.currentTurn.verdict = evaluateWithMockGemini(appState.currentTurn.prompt, activeEffort);
+      renderChatTurn(false);
+      renderSidecar();
+    }
+
+    // Event bindings
+    document.querySelectorAll('.view-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appState.view = btn.dataset.view;
+        renderViewTabs();
+      });
+    });
+
+    document.querySelectorAll('.seg-mode').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appState.mode = btn.dataset.mode;
+        renderModeSegments();
+        reevaluateCurrentTurn();
+      });
+    });
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = PRESETS[btn.dataset.preset];
+        document.getElementById('composerInput').value = text;
+        runTurn(text);
+      });
+    });
+
+    document.getElementById('composerSend').addEventListener('click', () => {
+      runTurn(document.getElementById('composerInput').value);
+    });
+
+    document.getElementById('composerInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runTurn(e.target.value);
+      }
+    });
+
+    document.getElementById('activeEffortSelect').addEventListener('change', () => {
+      reevaluateCurrentTurn();
+    });
+
+    document.getElementById('triggerRule').addEventListener('change', e => {
+      appState.triggerRule = e.target.value;
+      reevaluateCurrentTurn();
+    });
+
+    document.getElementById('saveModeSwitch').addEventListener('click', e => {
+      appState.saveMode = !appState.saveMode;
+      appState.quotaPct = appState.saveMode ? 84 : 62;
+      e.currentTarget.setAttribute('aria-checked', String(appState.saveMode));
+      reevaluateCurrentTurn();
+    });
+
+    document.getElementById('settingsToggleBtn').addEventListener('click', e => {
+      const drawer = document.getElementById('judgeDrawer');
+      const chevron = document.getElementById('settingsChevron');
+      const open = drawer.classList.toggle('hidden') === false;
+      e.currentTarget.setAttribute('aria-expanded', String(open));
+      chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+
+    document.getElementById('judgeModelSelect').addEventListener('change', e => {
+      appState.judgeModel = e.target.value;
+      renderSidecar();
+    });
+
+    document.getElementById('confSlider').addEventListener('input', e => {
+      appState.confThreshold = Number(e.target.value);
+      document.getElementById('confValue').textContent = `${appState.confThreshold}%`;
+      reevaluateCurrentTurn();
+    });
+
+    document.getElementById('simTimeoutBtn').addEventListener('click', () => {
+      runTurn(appState.currentTurn.prompt, { forceTimeout: true });
+    });
+
+    // Initial render
+    renderViewTabs();
+    renderModeSegments();
+    renderChatTurn(false);
+    renderSidecar();
+  </script>
+</body>
+</html>
